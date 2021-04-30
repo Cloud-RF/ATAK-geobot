@@ -1,6 +1,8 @@
 # ATAK geo bot
 This script is a client to a TAK server which forwards messages to web services like What3Words.
-It has been tested with https://github.com/tkuester/taky but should work with other TAK servers which support geochat / CoT.
+It has been tested with https://github.com/tkuester/taky 
+It did not work with FTS 1.7.5
+
 
 ## Setup
 
@@ -25,8 +27,10 @@ It has been tested with https://github.com/tkuester/taky but should work with ot
 5.	Start chatting to the bot directly, not in the "All Chat Rooms"
 
 ## BOT commands
-BOT commands are ... TBC
-Presently just type anything and it goes to W3W
+|Command | Description |
+|--|--|
+| os | Convert WGS84 to British National Grid / OSGB |
+| w3w | Convert WGS84 to what-3-words. Requires API key... |
 
 
  
