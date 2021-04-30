@@ -3,6 +3,7 @@ This script is a client to a TAK server which forwards messages to web services 
 It has been tested with https://github.com/tkuester/taky 
 It did not work with FTS 1.7.5
 
+![Geobot for ATAK](demo.jpg)
 
 ## Setup
 
