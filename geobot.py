@@ -6,29 +6,12 @@ import what3words
 import sys
 from OSGridConverter import latlong2grid
 
+
 # 	ATAK 'Geo Bot' for geo conversions
 # 	Works with https://github.com/tkuester/taky
-#	Not working with FTS
 #
-#	Copyright (c) 2021 Farrant Consulting Ltd
-#
-#	Permission is hereby granted, free of charge, to any person obtaining a copy
-#	of this software and associated documentation files (the "Software"), to deal
-#	in the Software without restriction, including without limitation the rights
-#	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#	copies of the Software, and to permit persons to whom the Software is
-#	furnished to do so, subject to the following conditions:
-#
-#	The above copyright notice and this permission notice shall be included in all
-#	copies or substantial portions of the Software.
-#
-#	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-#	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-#	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-#	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-#	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-#	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-#	SOFTWARE.
+# 	THIS IS PUBLIC DOMAIN CODE. GO NUTS.
+#	support@cloudrf.com
 
 
 # *** CHANGE ME ***
@@ -49,9 +32,23 @@ if len(sys.argv) > 1:
 # os = WGS84 to OSGB conversion
 
 # ADD YOUR AWESOME GEO CONVERSION HERE:
-commands = ["w3w","os"]
-helpers = ["WGS84 to What-3-words","WGS84 to OSGB"]
+commands = ["w3w","bng","ddd"]
+helpers = ["WGS84 to What-3-words","WGS84 to OSGB (BNG)","Decimal degree dropper"]
 
+def markerCoT(type,dest,lat,lon):
+	uuid=time.time()
+	ts=datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+	tots=(datetime.datetime.now()+datetime.timedelta(days=90)).strftime('%Y-%m-%dT%H:%M:%SZ')
+	print("Dropping marker")
+	msg='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+	msg+='<event version="2.0" uid="GEO-BOT.'+str(uuid)+'" type="'+type+'" time="'+ts+'" start="'+ts+'" stale="'+tots+'" how="h-g-i-g-o">'
+	msg+='<point lat="'+str(lat)+'" lon="'+str(lon)+'" hae="9999999.0" ce="9999999.0" le="9999999.0"/>'
+	msg+='<detail><status readiness="true"/><archive/><remarks/>'
+	msg+='<contact callsign="?"/><precisionlocation altsrc="DTED0"/><usericon iconsetpath="COT_MAPPING_2525C/a-u/'+type+'"/>'
+	msg+='<link uid="GEO-BOT" production_time="'+ts+'" type="'+type+'" parent_callsign="GEO-BOT" relation="p-p"/><color argb="-1"/></detail></event>'
+	if debug:
+		print("TX",msg)
+	return msg.encode("utf-8")
 
 def parseCoT(xml):
 	root = etree.fromstring(xml.encode("utf-8"))
@@ -76,7 +73,7 @@ def geochat(msg,dest):
 	<__chat parent="RootContactGroup" groupOwner="false" chatroom="'+dest+'" id="'+dest+'" senderCallsign="GEO BOT">\
 	<chatgrp uid0="GEO-BOT" uid1="'+dest+'" id="'+dest+'"/></__chat><link uid="GEO-BOT" type="a-f-G-U-C" relation="p-p"/>\
 	<remarks source="BAO.F.ATAK.GEO-BOT" to="'+dest+'" time="'+ts+'">'+msg+'</remarks>\
-	<__serverdestination destinations="192.168.1.107:4242:tcp:GEO-BOT"/></detail></event>'
+	<__serverdestination destinations="'+TAK_SERVER_ADDRESS+':4242:tcp:GEO-BOT"/></detail></event>'
 	if debug:
 		print("TX",msg)
 	return msg.encode("utf-8")
@@ -102,15 +99,16 @@ def respond(s,xml):
 	ts=datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 	request=parseCoT(xml)
 	print(ts,request)
-	if request["cmd"] in commands:
+	cmd = request["cmd"][:3].strip()
+	if cmd in commands:
 		print(request["lat"],request["lon"])
 		if (abs(request["lat"])+abs(request["lon"])) < 1.0:
 			s.sendall(geochat("Set your location (%.1f,%.1f )before requesting a conversion!" % (request["lat"],request["lon"]),request["atakuid"]))
 			return
-		s.sendall(geochat("Tranforming location %.5f, %.5f..." % (request["lat"],request["lon"]),request["atakuid"]))
 
-		# WHAT 3 WORDS 
-		if request["cmd"] == "w3w":
+		# WHAT 3 WORDS
+		if cmd == "w3w":
+			s.sendall(geochat("Tranforming location %.5f, %.5f..." % (request["lat"],request["lon"]),request["atakuid"]))
 			res = geocoder.convert_to_3wa(what3words.Coordinates(request["lat"], request["lon"]))
 			if "words" in res:
 				s.sendall(geochat(res["words"],request["atakuid"]))
@@ -119,15 +117,54 @@ def respond(s,xml):
 				s.sendall(geochat(res["error"]["message"],request["atakuid"]))
 
 		# OSGB / EPSG
-		if request["cmd"] == "os":
+		if cmd == "bng":
+			s.sendall(geochat("Tranforming location %.5f, %.5f..." % (request["lat"],request["lon"]),request["atakuid"]))
 			bng=latlong2grid(request["lat"], request["lon"])
 			print(bng)
 			s.sendall(geochat(str(bng),request["atakuid"]))
+
+		if cmd == "ddd":
+			print(request,cmd)
+			ack = "Bad location"
+			# RULES
+			loc = request["cmd"][3:].strip()
+
+			if len(loc) < 10:
+				ack = "Coordinates should be longer than 10 chars"
+			if len(loc) > 32:
+				ack = "Coordinates should be shorter than 32 chars"
+			delim = "?"
+			# Split it
+			if "," in loc:
+				delim = ","
+			elif " " in loc:
+				delim = " "
+			else:
+				ack = "Coordinates delimiter should be a , or a space"
+
+			if delim != "?":
+				parts = loc.split(delim)
+				try:
+					lat = float(parts[0])
+					lon = float(parts[1])
+					# sanity check coords
+					if lat < -90 or lat > 90:
+						error = "Latitude out of bounds: -90. to 90."
+					
+				except:
+					s.sendall(geochat("Failed to parse coordinates",request["atakuid"]))
+					return
+
+				marker = markerCoT("a-u-G",request["atakuid"],lat,lon)
+				s.sendall(marker)
+				s.sendall(geochat("Dropped marker at "+str(lat)+","+str(lon),request["atakuid"]))
+			else:
+				s.sendall(geochat(str(ack),request["atakuid"]))
 	else:
-		s.sendall(geochat("Available services. Ensure you have set your lat/lon either manually or with a GPS",request["atakuid"]))	
+		s.sendall(geochat("Available services. Ensure you have set your lat/lon either manually or with a GPS",request["atakuid"]))
 		c = 0
 		while c < len(commands):
-			s.sendall(geochat(commands[c]+": "+helpers[c],request["atakuid"]))	
+			s.sendall(geochat(commands[c]+": "+helpers[c],request["atakuid"]))
 			c+=1
 
 
@@ -157,20 +194,15 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 	s.sendall(geochat('GEO-BOT online','All Chat Rooms'))
 
 	while True:
-		elapsed = time.time() - start
-		if elapsed > 8:
-			ping(s) # keep-alive
-			start = time.time()
 
 		try:
 			xml = s.recv(1024).decode("utf-8")
 			if "Chat" in xml:
 				respond(s,xml)
 			else:
-				if debug and len(xml) > 1:				
-					print("RX",xml) 
+				if debug and len(xml) > 1:
+					print("RX",xml)
 				pass
 		except:
 			print("Received bad XML data from server")
-
-
+			print(xml)

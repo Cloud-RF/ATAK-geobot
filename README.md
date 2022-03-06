@@ -1,11 +1,15 @@
 # ATAK geo bot
 This script is a client to a TAK server which forwards messages to web services like What3Words.
 It has been tested with https://github.com/tkuester/taky 
-It did not work with FTS 1.7.5
 
 ![Geobot for ATAK](demo.jpg)
 
 ## Setup
+
+### Fetch libraries for w3w and OSGB
+
+python3 -m pip install what3words OSGridConverter
+
 
  1.	Edit the settings in the script for your server and API keys
  
@@ -30,9 +34,9 @@ It did not work with FTS 1.7.5
 ## BOT commands
 |Command | Description |
 |--|--|
-| os | Convert WGS84 to British National Grid / OSGB |
+| bng | Convert WGS84 to British National Grid / OSGB |
 | w3w | Convert WGS84 to what-3-words. Requires API key... |
-
+| ddd | Decimal degrees dropper. Paste in coordinates, get a pin |
 
  
 
